@@ -1,0 +1,24 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #000;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+}
+
+/* --- TC-S Solar Waves Theme --- */
+.tcs-solar-bg {
+  color: #f9feff;
+}
+
+@keyframes tcs-wave-drift {
+  0% {
+    transform: translate3d(-8%, -4%, 0);
+  }
+  100% {
+    transform: translate3d(6%, 5%, 0);
+  }
+}
