@@ -1,11 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 const WPC_VERSION = '1.0.0';
-const TELEMETRY_VERSION = '1.0.0';
-const DASHBOARD_ENDPOINT = process.env.NEXT_PUBLIC_TELEMETRY_ENDPOINT || 
-  'https://tc-s-network-solar-dashboard.vercel.app/api/telemetry';
+const WPC_BUILD = '2024-12-02';
 
 interface WPCResult {
   flops: number;
@@ -23,11 +21,6 @@ interface WPCParams {
   resolution?: number;
   powerWatts?: number;
   seconds?: number;
-}
-
-interface WPCPanelProps {
-  appName?: string;
-  enableTelemetry?: boolean;
 }
 
 function estimateFlops({ model = 'llm', tokens = 50, resolution = 512 }: WPCParams): number {
@@ -86,35 +79,6 @@ function computeAll(params: WPCParams): WPCResult {
   };
 }
 
-async function sendTelemetry(payload: {
-  app: string;
-  kWh: number;
-  solar: number;
-  rays: number;
-  flops: number;
-  wpc: number;
-  grade: string;
-}): Promise<boolean> {
-  try {
-    const response = await fetch(DASHBOARD_ENDPOINT, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'X-TCS-Telemetry': TELEMETRY_VERSION
-      },
-      body: JSON.stringify({
-        ...payload,
-        ts: Date.now(),
-        version: TELEMETRY_VERSION
-      })
-    });
-    return response.ok;
-  } catch (err) {
-    console.error('[TC-S Telemetry] Send failed:', err);
-    return false;
-  }
-}
-
 const gradeColors: Record<string, string> = {
   'A+': 'bg-green-500',
   'A': 'bg-green-400',
@@ -123,14 +87,13 @@ const gradeColors: Record<string, string> = {
   'D': 'bg-red-500',
 };
 
-export default function WPCPanel({ appName = 'Unknown', enableTelemetry = true }: WPCPanelProps) {
+export default function WPCPanel() {
   const [model, setModel] = useState<'llm' | 'vision' | 'diffusion'>('llm');
   const [tokens, setTokens] = useState(50);
   const [resolution, setResolution] = useState(512);
   const [powerWatts, setPowerWatts] = useState(60);
   const [seconds, setSeconds] = useState(0.07);
   const [result, setResult] = useState<WPCResult | null>(null);
-  const [telemetrySent, setTelemetrySent] = useState(false);
 
   useEffect(() => {
     const computed = computeAll({
@@ -141,35 +104,7 @@ export default function WPCPanel({ appName = 'Unknown', enableTelemetry = true }
       seconds,
     });
     setResult(computed);
-    setTelemetrySent(false);
   }, [model, tokens, resolution, powerWatts, seconds]);
-
-  const handleSendTelemetry = useCallback(async () => {
-    if (!result || !enableTelemetry) return;
-    
-    const success = await sendTelemetry({
-      app: appName,
-      kWh: result.kWh,
-      solar: result.solar,
-      rays: result.rays,
-      flops: result.flops,
-      wpc: result.wpc,
-      grade: result.grade
-    });
-    
-    if (success) {
-      setTelemetrySent(true);
-    }
-  }, [result, appName, enableTelemetry]);
-
-  useEffect(() => {
-    if (result && enableTelemetry && !telemetrySent) {
-      const timer = setTimeout(() => {
-        handleSendTelemetry();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [result, enableTelemetry, telemetrySent, handleSendTelemetry]);
 
   const formatNumber = (num: number, decimals = 2): string => {
     if (num < 0.001) return num.toExponential(decimals);
@@ -185,17 +120,11 @@ export default function WPCPanel({ appName = 'Unknown', enableTelemetry = true }
         <h3 className="text-cyan-400 text-lg font-bold tracking-wide">
           WPC Compute Intelligence
         </h3>
-        <div className="flex items-center gap-2">
-          {enableTelemetry && (
-            <span className={`w-2 h-2 rounded-full ${telemetrySent ? 'bg-green-400' : 'bg-yellow-400'} animate-pulse`} 
-                  title={telemetrySent ? 'Telemetry sent' : 'Sending telemetry...'} />
-          )}
-          {result && (
-            <span className={`${gradeColors[result.grade]} text-black font-bold px-3 py-1 rounded-full text-sm`}>
-              {result.grade}
-            </span>
-          )}
-        </div>
+        {result && (
+          <span className={`${gradeColors[result.grade]} text-black font-bold px-3 py-1 rounded-full text-sm`}>
+            {result.grade}
+          </span>
+        )}
       </div>
 
       <div className="space-y-4">
@@ -294,12 +223,11 @@ export default function WPCPanel({ appName = 'Unknown', enableTelemetry = true }
         </div>
       )}
 
-      <div className="mt-4 flex items-center justify-between text-xs text-gray-500">
-        <span>1 SOLAR = 4913 kWh</span>
-        <span className="text-cyan-600">{appName} | v{WPC_VERSION}</span>
+      <div className="mt-4 text-center text-xs text-gray-500">
+        1 SOLAR = 4913 kWh | TC-S Computronium Standard v{WPC_VERSION}
       </div>
     </div>
   );
 }
 
-export { WPC_VERSION, TELEMETRY_VERSION, sendTelemetry };
+export { WPC_VERSION, WPC_BUILD };
