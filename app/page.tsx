@@ -1,3 +1,4 @@
+import WPCPanel from '@/components/tcs/WPCPanel';
 export default function Page() {
   return (
     <main className="p-10 space-y-4">
